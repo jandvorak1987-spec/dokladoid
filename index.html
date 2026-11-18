@@ -177,7 +177,7 @@ tbody tr:hover{background:rgba(127,140,170,.04)}
 .kv-list b{text-align:right;color:var(--inv-tx)}
 .sec-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#64748b;margin-bottom:4px}
 
-/* 1. FAKTUROID CLEAN (2 sloupce: Vlevo Dodavatel+Banka, Vpravo Odběratel+Data+Částka) */
+/* 1. FAKTUROID CLEAN */
 .tpl-fakturoid .f-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid var(--inv-p)}
 .tpl-fakturoid .f-title{font-size:20px;font-weight:800;color:var(--inv-p);letter-spacing:-.02em}
 .tpl-fakturoid .f-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:16px}
@@ -187,7 +187,7 @@ tbody tr:hover{background:rgba(127,140,170,.04)}
 .tpl-fakturoid .f-bottom{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-top:14px}
 .tpl-fakturoid .f-total{background:var(--inv-p);color:#fff;padding:12px 16px;border-radius:6px;text-align:right;min-width:210px}
 
-/* 2. iDOKLAD BANNER (Plný barevný horní pás, 3-sloupcový info strip, čisté karty) */
+/* 2. iDOKLAD BANNER */
 .tpl-idoklad{padding-top:0}
 .tpl-idoklad .i-banner{
   background:var(--inv-p);color:#fff;margin:0 -28px 18px;padding:20px 28px;
@@ -204,7 +204,7 @@ tbody tr:hover{background:rgba(127,140,170,.04)}
 .tpl-idoklad .a4-tbl th{background:#f1f5f9;color:#1e293b;border-bottom:2px solid var(--inv-p)}
 .tpl-idoklad .i-foot{display:flex;justify-content:space-between;align-items:center;background:var(--inv-s);padding:12px 16px;border-radius:8px;margin-top:14px}
 
-/* 3. STRIPE / MODERNÍ EDITORIAL (Asymetrický levý pruh, velká typografie, otevřený vzdušný layout) */
+/* 3. STRIPE / MODERNÍ EDITORIAL */
 .tpl-editorial{border-left:10px solid var(--inv-p);padding-left:24px}
 .tpl-editorial .e-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px}
 .tpl-editorial .e-big{font-family:'Playfair Display',Georgia,serif;font-size:28px;font-weight:700;color:var(--inv-tx);line-height:1.1}
@@ -215,7 +215,7 @@ tbody tr:hover{background:rgba(127,140,170,.04)}
 .tpl-editorial .e-paybox{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-top:16px;padding-top:12px;border-top:2px solid var(--inv-tx)}
 .tpl-editorial .e-bank{background:var(--inv-s);padding:10px 12px;border-radius:6px;flex:1}
 
-/* 4. POHODA / ÚČETNÍ KLASIKA (Tradiční český daňový doklad s mřížkou a razítkem) */
+/* 4. POHODA / ÚČETNÍ KLASIKA */
 .tpl-classic .c-box{border:1.5px solid #1e293b}
 .tpl-classic .c-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1.5px solid #1e293b;background:var(--inv-s)}
 .tpl-classic .c-grid2{display:grid;grid-template-columns:1fr 1fr;border-bottom:1.5px solid #1e293b}
@@ -360,12 +360,12 @@ function money(n){return (Number(n)||0).toLocaleString('cs-CZ',{minimumFractionD
 
 function defaultStyle(){
   return {
-    tpl: 'fakturoid',      // 'fakturoid' | 'idoklad' | 'editorial' | 'classic'
+    tpl: 'fakturoid',
     primary: '#1976d2',
     secondary: '#f0f7ff',
     text: '#1e293b',
-    swapParties: false,    // prohodit Dodavatel <-> Odběratel
-    showBankTop: false,    // bankovní údaje nahoře v hlavičce vs. dole u QR
+    swapParties: false,
+    showBankTop: false,
     showQr: true,
     compactItems: false
   };
@@ -946,7 +946,6 @@ function cliChg(v){
   var c = D().clients.filter(function(x){return x.name.toLowerCase()===v.toLowerCase()})[0];
   if(c){
     cur.cico=c.ico||''; cur.cdic=c.dic||''; cur.caddr=c.addr||''; cur.cemail=c.email||'';
-    // Přepočítat ceny stávajících skladových položek podle cenové hladiny odběratele
     cur.items.forEach(function(it){
       if(it.sid && !it.isBonus){
         var s = find('stock', it.sid);
@@ -1010,7 +1009,6 @@ function applyPromoBonus(){
     if(!it.isBonus && Number(it.qty) >= buyQ && it.name){
       var mult = Math.floor(Number(it.qty) / buyQ);
       var bonusTotal = mult * freeQ;
-      // Zkontrolovat jestli už bonusový řádek pro tuto položku neexistuje
       var already = cur.items.some(function(x){ return x.isBonus && x.name.indexOf(it.name) > -1; });
       if(!already && bonusTotal > 0){
         newItems.push({
@@ -1077,7 +1075,6 @@ function upd(){
   a4.style.setProperty('--inv-s', st.secondary);
   a4.style.setProperty('--inv-tx', st.text || '#1e293b');
 
-  // Zvýraznit aktivní tlačítko šablony
   document.querySelectorAll('.tpl-btn').forEach(function(b){
     b.classList.toggle('on', b.getAttribute('onclick').indexOf("'"+st.tpl+"'") > -1);
   });
@@ -1120,7 +1117,6 @@ function upd(){
   var noteAndReg = (i.note?'<div style="margin-top:12px;font-size:11px"><b>Poznámka:</b> '+e(i.note)+'</div>':'')+
     '<div style="margin-top:14px;padding-top:6px;border-top:1px solid #e2e8f0;font-size:9.5px;color:#64748b">'+e(sup.regInfo||'')+'</div>';
 
-  /* ŠABLONA 1: FAKTUROID CLEAN (2 asymetrické sloupce jako Fakturoid.cz) */
   if(st.tpl === 'fakturoid'){
     a4.innerHTML =
       '<div class="f-top"><div>'+logoHtml+'</div><div class="r"><div class="f-title">'+docTitle+'</div><div style="font-size:13px;font-weight:700">č. '+e(i.number)+'</div></div></div>'+
@@ -1134,7 +1130,6 @@ function upd(){
         '<div class="f-total">'+vatRows+'<div style="font-size:16px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.3)"><b>Celkem: '+grandTotal+'</b></div></div>'+
       '</div>'+noteAndReg;
   }
-  /* ŠABLONA 2: iDOKLAD BANNER (Plný horní pruh + 3-sloupcový strip + karty) */
   else if(st.tpl === 'idoklad'){
     a4.innerHTML =
       '<div class="i-banner"><div>'+logoHtml+'</div><div class="r"><div class="i-title">'+docTitle+'</div><div style="opacity:.9;font-size:13px">Doklad č. <b>'+e(i.number)+'</b></div></div></div>'+
@@ -1148,7 +1143,6 @@ function upd(){
       '<div class="i-foot">'+qrSvg(isVat?t.t:t.z)+'<div class="r" style="min-width:210px">'+vatRows+'<div style="font-size:15px;margin-top:6px;padding-top:6px;border-top:1px solid #cbd5e1"><b>Celkem k úhradě: '+grandTotal+'</b></div></div></div>'+
       noteAndReg;
   }
-  /* ŠABLONA 3: MODERNÍ EDITORIAL (Levý barevný pruh, patkový nadpis, 3-sloupcové záhlaví) */
   else if(st.tpl === 'editorial'){
     a4.innerHTML =
       '<div class="e-head"><div><div class="e-big">'+docTitle+'</div><div class="e-num">Evidenční číslo: '+e(i.number)+'</div></div><div>'+logoHtml+'</div></div>'+
@@ -1160,7 +1154,6 @@ function upd(){
         '<div class="r" style="min-width:190px">'+vatRows+'<div style="font-size:17px;font-weight:800;color:var(--inv-p);margin-top:6px">'+grandTotal+'</div></div>'+
       '</div>'+noteAndReg;
   }
-  /* ŠABLONA 4: POHODA / ÚČETNÍ KLASIKA (Tradiční ohraničená účetní mřížka) */
   else {
     a4.innerHTML =
       '<div class="c-box">'+
@@ -1262,7 +1255,6 @@ async function sendInvoiceEmail(id){
   window.location.href = 'mailto:' + encodeURIComponent(toEmail) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(bodyText);
 }
 
-
 /* ---------- Přijaté doklady / Fotoaparát / Archiv ---------- */
 function vDocs(){
   var docs = srt(D().docs || [], 'date').reverse();
@@ -1327,7 +1319,6 @@ function vStock(){
   var cats = STORE.categories || ['Jednorázové e-cigarety', 'Předplněné pody / Cartridge', 'Sety e-cigaret & Pod systémy', 'Liquidy', 'Bez nikotinu (0 mg)', 'Nikotinové sáčky & Tabák', 'Baterie & Příslušenství', 'Ostatní'];
   var allStock = srt(D().stock, 'name');
 
-  // Počty položek ve skupinách
   var counts = { ALL: allStock.length };
   cats.forEach(function(ct){ counts[ct] = 0; });
   allStock.forEach(function(s){
@@ -1576,7 +1567,6 @@ function handleImportFile(file){
         for(var p=1; p<=pdf.numPages; p++){
           var page = await pdf.getPage(p);
           var tc = await page.getTextContent();
-          // Seřadit textové prvky odshora dolů (Y sestupně s tolerancí 4pt) a zleva doprava (X vzestupně)
           var items = tc.items.filter(function(it){ return it.str && it.str.trim(); }).map(function(it){
             return { str: it.str.trim(), x: it.transform[4], y: it.transform[5], w: it.width || 0 };
           });
@@ -1679,14 +1669,10 @@ async function parseWithGemini(base64Data, mimeType, rawText){
   }).filter(function(x){return x.name});
 }
 
-
 function cleanProductName(name){
   var s = String(name||'')
-    // Odstranit úvodní čísla/částky (např. "4 400,00 924,00 VENIX..." -> "VENIX...")
     .replace(/^[\d\s.,%-]+(?=[A-Za-zÁČĎÉĚÍŇÓŘŠŤÚŮÝŽáčďéěíňóřšťúůýž])/g, '')
-    // Odstranit koncové částky/čísla (např. "...Grape-X 4 400,00 924,00")
     .replace(/\s+\d{1,3}(?:[\s\u00a0]\d{3})*[.,]\d{2,4}(?:\s+[\d\s\u00a0.,%-]+)?$/g, '')
-    // Odstranit marketingové štítky
     .replace(/\b(AKCE|SLEVA|VÝPRODEJ|VYPRODEJ|NOVINKA|TIP|BLACK\s*FRIDAY|PROMO|ZDARMA|1\+1)\b/gi, '')
     .replace(/\(\s*\)/g, '')
     .replace(/^[-–—:|]+\s*|\s*[-–—:|]+$/g, '')
@@ -1710,7 +1696,6 @@ function guessCategory(name){
 function isPureNoiseLine(line){
   var l = line.trim();
   if(!l) return true;
-  // Řádek tvořený jen čísly, mezerami, čárkami, tečkami nebo procenty (např. "4 400,00 924,00 5 324,00" nebo "X AKCE")
   if(/^[\d\s\u00a0.,%:-]+$/.test(l)) return true;
   if(/^(Označení dodávky|Počet m\.\s*j\.|Cena za m\.j\.|DPH %|Bez DPH|Celkem|Množství|Jedn\.|Sazba DPH|Základ|Výše DPH|Vystavil|Vystaveno|Strana)/i.test(l)) return true;
   return false;
@@ -1729,8 +1714,6 @@ function smartExtractItemsFromText(txt, defVat){
 
   for(var i = 0; i < rawLines.length; i++){
     var line = rawLines[i];
-
-    // Hledáme kotvu: [Množství] [Jednotka] [Jednotková cena] (např. "44,0 ks 100,0000")
     var anchor = line.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(ks|bal|kart|kg|l|m|hod|sada)\s+(\d{1,3}(?:[\s\u00a0]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)(?:\s+(0|12|21)(?:\s*%)?)?(?:\s+[\d\s\u00a0.,]+)?$/i);
 
     if(anchor){
@@ -1743,13 +1726,12 @@ function smartExtractItemsFromText(txt, defVat){
       var fullName = (pendingPrefix ? pendingPrefix + ' ' : '') + inlineName;
       pendingPrefix = '';
 
-      // Podívat se na bezprostředně následující řádek, jestli tam nepřetekl konec názvu (např. "X AKCE" pod "NEX Cherry Grape-")
       if(i + 1 < rawLines.length){
         var nextL = rawLines[i + 1];
         var nextHasAnchor = /(\d+(?:[.,]\d+)?)\s*(ks|bal|kart|kg|l|m|hod|sada)\s+\d/i.test(nextL);
         if(!nextHasAnchor && nextL.length <= 25 && /[A-Za-zÁČĎÉĚÍŇÓŘŠŤÚŮÝŽáčďéěíňóřšťúůýž]/.test(nextL) && !/\d{2,}[.,]\d{2}/.test(nextL)){
           fullName += (fullName.endsWith('-') ? '' : ' ') + nextL;
-          i++; // přeskočit zkonzumovaný řádek
+          i++;
         }
       }
 
@@ -1766,7 +1748,6 @@ function smartExtractItemsFromText(txt, defVat){
         });
       }
     } else if(line.indexOf('\t') > -1 || line.indexOf(';') > -1){
-      // Tabulkový řádek z Excelu / CSV
       var sep = line.indexOf('\t') > -1 ? '\t' : ';';
       var p = line.split(sep).map(function(s){return s.trim()});
       var cleanN = cleanProductName(p[0]);
@@ -1779,7 +1760,6 @@ function smartExtractItemsFromText(txt, defVat){
       }
       pendingPrefix = '';
     } else {
-      // Čistě textový řádek bez částek -> uložit jako prefix pro další řádek (např. "VENIX" před "NEX Grape-X 44,0 ks ...")
       if(line.length <= 45 && /[A-Za-zÁČĎÉĚÍŇÓŘŠŤÚŮÝŽáčďéěíňóřšťúůýž]/.test(line) && !/\d{2,}[.,]\d{2}/.test(line)){
         pendingPrefix = (pendingPrefix ? pendingPrefix + ' ' : '') + line;
       } else {
@@ -1819,7 +1799,6 @@ function impAdd(){
   IMP = null; go('stock');
 }
 
-
 /* ---------- Banka & Automatické párování plateb (Fio API + CSV/GPC) ---------- */
 var bankLog = [];
 function vBank(){
@@ -1846,7 +1825,7 @@ function vBank(){
   logHtml +
   '<div class="card"><h2>Neuhrazené faktury čekající na platbu ('+openInvs.length+')</h2>'+
     (openInvs.length ? '<div class="w"><table><thead><tr><th>Číslo</th><th>VS</th><th>Odběratel</th><th>Splatnost</th><th class="r">Částka</th><th></th></tr></thead><tbody>'+
-      openInvs.map(function(i){ return '<tr><td><b>'+e(i.number)+'</b></td><td>'+e(i.vs)+'</td><td>'+e(i.client||'—')+'</td><td class="mu">'+e(i.due)+'</td><td class="r"><b>'+money(calc(i).t)+'</b></td><td class="r"><button class="g" onclick="togPaid(''+i.id+'')">✅ Spárovat ručně</button></td></tr>'; }).join('')+
+      openInvs.map(function(i){ return '<tr><td><b>'+e(i.number)+'</b></td><td>'+e(i.vs)+'</td><td>'+e(i.client||'—')+'</td><td class="mu">'+e(i.due)+'</td><td class="r"><b>'+money(calc(i).t)+'</b></td><td class="r"><button class="g" onclick="togPaid(\''+i.id+'\')">✅ Spárovat ručně</button></td></tr>'; }).join('')+
     '</tbody></table></div>' : '<p class="mu">Všechny vystavené faktury jsou uhrazené.</p>')+
   '</div>';
 }
@@ -1913,16 +1892,14 @@ function handleBankFile(file){
   var r = new FileReader();
   r.onload = function(ev){
     var txt = ev.target.result;
-    var lines = txt.split(/?
-/), txs = [];
-    // GPC formát (řádky začínají 075)
+    var lines = txt.split(/\r?\n/), txs = [];
     if(lines.some(function(l){ return l.indexOf('075') === 0; })){
       lines.forEach(function(l){
         if(l.indexOf('075') === 0 && l.length >= 90){
-          var typ = l.slice(60, 61); // 2 = kredit (příchozí platba)
+          var typ = l.slice(60, 61);
           var halere = parseInt(l.slice(48, 60), 10) || 0;
           var vs = l.slice(61, 71).replace(/^0+/, '');
-          var dStr = l.slice(122, 128); // DDMMRR
+          var dStr = l.slice(122, 128);
           var dt = dStr.length===6 ? ('20'+dStr.slice(4,6)+'-'+dStr.slice(2,4)+'-'+dStr.slice(0,2)) : today();
           if(typ === '2' || typ === '5'){
             txs.push({date: dt, amount: halere / 100, vs: vs, info: l.slice(97, 117).trim() || 'GPC platba'});
@@ -1930,7 +1907,6 @@ function handleBankFile(file){
         }
       });
     } else {
-      // CSV výpis
       lines.forEach(function(l, idx){
         if(idx === 0 || !l.trim()) return;
         var sep = l.indexOf(';') > -1 ? ';' : ',';
