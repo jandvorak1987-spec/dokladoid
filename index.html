@@ -29,10 +29,14 @@ nav button.on{background:var(--ac);color:#fff;box-shadow:0 4px 12px rgba(47,109,
 .ic{width:18px;height:18px;flex:none}
 .sf{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--sidetx);font-size:13px}
 .sf .g{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:#fff;padding:4px 10px}
+.role-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;letter-spacing:.04em;margin-top:2px}
+.role-adm{background:#2f6df6;color:#fff}
+.role-usr{background:rgba(255,255,255,.14);color:#cbd5e1}
 .mainwrap{flex:1;min-width:0}
 main{max-width:1060px;margin:0 auto;padding:28px}
 select,input,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 11px;max-width:100%;transition:border-color .15s,box-shadow .15s}
 input:focus,select:focus,textarea:focus{outline:0;border-color:var(--ac);box-shadow:0 0 0 3px var(--acs)}
+input:disabled,select:disabled{opacity:.65;cursor:not-allowed;background:var(--bg)}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:var(--sh)}
 h2{margin:0 0 14px;font-size:20px;font-weight:700;letter-spacing:-.01em}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -52,7 +56,7 @@ td input,td select{width:100%;min-width:60px}
 .r{text-align:right;white-space:nowrap}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
 label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px;font-weight:500}
-label input,.grid input,.grid textarea{width:100%}
+label input,.grid input,.grid textarea,.grid select{width:100%}
 .tot{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;margin-top:16px}
 #sum{background:var(--bg);border-radius:12px;padding:14px 18px;min-width:230px}
 .qr svg{width:150px;height:150px;background:#fff;border-radius:10px;border:1px solid var(--bd);padding:4px}
@@ -94,7 +98,7 @@ textarea{width:100%;min-height:120px}
   <div class="logo"><span class="lm">D</span>Dokladoid</div>
   <select id="co" onchange="switchCo(this.value)" title="Přepnout firmu"></select>
   <nav id="nav"></nav>
-  <div class="sf"><span id="who" style="overflow:hidden;text-overflow:ellipsis;max-width:120px"></span><button class="g" onclick="logout()">Odhlásit</button></div>
+  <div class="sf"><div id="who"></div><button class="g" onclick="logout()">Odhlásit</button></div>
 </aside>
 <div class="mainwrap"><main id="app"></main></div>
 </div>
@@ -115,6 +119,11 @@ const firebaseConfig = {
   measurementId: "G-SWGKN1Y3JC"
 };
 
+// Hlavní zakládající administrátor (nemůže být odebrán)
+const ROOT_ADMINS = [
+  "jan.dvorak1987@gmail.com"
+];
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -127,18 +136,30 @@ function mk(n) { return { name: n, ico: '', dic: '', addr: '', iban: '', bank: '
 
 let P = { a: mk('Firma A s.r.o.'), b: mk('Firma B s.r.o.') };
 let D = { stock: [], invoices: [], clients: [] };
+let dynamicAdmins = [];
 let A = 'a';
 let V = { p: 'dash' };
 let cur = null;
 let pend = false;
 let err = '';
 let me = null;
+let isAdmin = false;
 let unsubs = [];
 let icoMsg = '';
+let setMsg = '';
 let EX = { mode: 'month', mon: '', inc: false };
 
 try { A = localStorage.getItem('dokladoid_active') === 'b' ? 'b' : 'a'; } catch (x) {}
 function C() { return P[A]; }
+
+function updateRoleUI() {
+  if (!me) return;
+  const allAdmins = ROOT_ADMINS.concat(dynamicAdmins).map(m => String(m).toLowerCase().trim());
+  isAdmin = allAdmins.includes(me.toLowerCase().trim());
+  document.getElementById('who').innerHTML =
+    '<div style="overflow:hidden;text-overflow:ellipsis;max-width:125px;font-weight:600;color:#fff">' + e(me.split('@')[0]) + '</div>' +
+    '<span class="role-tag ' + (isAdmin ? 'role-adm' : 'role-usr') + '">' + (isAdmin ? 'ADMIN' : 'UŽIVATEL') + '</span>';
+}
 
 /* ---------- Živá synchronizace s Firebase Firestore ---------- */
 function clearSubs() {
@@ -148,12 +169,19 @@ function clearSubs() {
 
 function startSync() {
   clearSubs();
+  unsubs.push(onSnapshot(doc(db, 'settings', 'admins'), snap => {
+    dynamicAdmins = snap.exists() && Array.isArray(snap.data().emails) ? snap.data().emails : [];
+    updateRoleUI();
+    rr();
+  }, x => er(x)));
+
   ['a', 'b'].forEach(k => {
     unsubs.push(onSnapshot(doc(db, 'profiles', k), snap => {
       if (snap.exists()) P[k] = Object.assign(mk(''), snap.data());
       rr();
     }, x => er(x)));
   });
+
   ['stock', 'invoices', 'clients'].forEach(kind => {
     unsubs.push(onSnapshot(collection(db, 'cos_' + A + '_' + kind), snap => {
       D[kind] = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
@@ -166,7 +194,7 @@ function startSync() {
 function showLogin() {
   document.getElementById('nav').innerHTML = '';
   document.getElementById('co').innerHTML = '';
-  document.getElementById('who').textContent = '';
+  document.getElementById('who').innerHTML = '';
   document.getElementById('app').innerHTML = `
     <div class="card" style="max-width:360px;margin:60px auto">
       <h2>Přihlášení do Dokladoid</h2>
@@ -198,12 +226,13 @@ window.logout = async function() {
 onAuthStateChanged(auth, user => {
   if (!user) {
     me = null;
+    isAdmin = false;
     clearSubs();
     showLogin();
     return;
   }
-  me = user.email;
-  document.getElementById('who').textContent = me.split('@')[0];
+  me = user.email || '';
+  updateRoleUI();
   R();
   startSync();
 });
@@ -217,7 +246,7 @@ function isIn() {
   return a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
 }
 function rr() {
-  if (V.p === 'edit' || V.p === 'imp' || isIn()) { pend = true; return; }
+  if (V.p === 'edit' || V.p === 'imp' || V.p === 'set' || isIn()) { pend = true; return; }
   pend = false;
   R();
 }
@@ -227,14 +256,15 @@ function wr(n, o) {
   o = JSON.parse(JSON.stringify(o));
   const id = o.id;
   delete o.id;
-  setDoc(doc(db, 'cos_' + A + '_' + n, id), o).catch(er);
+  return setDoc(doc(db, 'cos_' + A + '_' + n, id), o).catch(er);
 }
 function rm(n, id) {
+  if (!isAdmin) { alert('Mazat záznamy může pouze administrátor.'); return; }
   deleteDoc(doc(db, 'cos_' + A + '_' + n, id)).catch(er);
 }
 function wrP(k, v) {
   P[A][k] = v;
-  setDoc(doc(db, 'profiles', A), JSON.parse(JSON.stringify(P[A]))).catch(er);
+  return setDoc(doc(db, 'profiles', A), JSON.parse(JSON.stringify(P[A]))).catch(er);
 }
 function find(n, id) { return D[n].filter(x => x.id === id)[0]; }
 function srt(a, k) { return a.slice().sort((x, y) => String(x[k]).localeCompare(String(y[k]), 'cs')); }
@@ -242,6 +272,7 @@ function srt(a, k) { return a.slice().sort((x, y) => String(x[k]).localeCompare(
 window.go = function(p, id) {
   V = { p: p, id: id };
   icoMsg = '';
+  setMsg = '';
   if (p === 'edit') cur = id ? JSON.parse(JSON.stringify(find('invoices', id))) : newInv();
   R();
   window.scrollTo(0, 0);
@@ -258,7 +289,7 @@ window.switchCo = function(id) {
 function blank() { return { name: '', qty: 1, unit: 'ks', price: 0, vat: C().vatPayer === 'ne' ? 0 : 21 }; }
 function newInv() {
   const y = new Date().getFullYear();
-  const n = '' + y + String(C().next).padStart(4, '0');
+  const n = '' + y + String(C().next || 1).padStart(4, '0');
   return { id: uid(), number: n, vs: n, client: '', cico: '', cdic: '', caddr: '', issue: today(), due: today(14), items: [blank()], status: 'open', deduct: true, deducted: false, isNew: true };
 }
 function calc(inv) {
@@ -307,7 +338,7 @@ function vDash() {
 function vInv() {
   const rows = srt(D.invoices, 'number').reverse().map(i => {
     const s = stOf(i), pd = i.status === 'paid';
-    return '<tr><td><b>' + e(i.number) + '</b></td><td>' + e(i.client || '—') + '</td><td class="mu">' + e(i.issue) + '</td><td><span class="bd ' + s[1] + '">' + s[0] + '</span>' + (i.exported ? ' <span class="mu">✓ Pohoda</span>' : '') + '</td><td class="r">' + money(calc(i).t) + '</td><td class="r"><button class="g" onclick="togPaid(\'' + i.id + '\')">' + (pd ? 'Nezaplaceno' : 'Zaplaceno') + '</button> <button class="g" onclick="go(\'edit\',\'' + i.id + '\')">Upravit</button> <button class="g" onclick="copyInv(\'' + i.id + '\')">Kopírovat</button> <button class="g d" onclick="delInv(\'' + i.id + '\')">✕</button></td></tr>';
+    return '<tr><td><b>' + e(i.number) + '</b></td><td>' + e(i.client || '—') + '</td><td class="mu">' + e(i.issue) + '</td><td><span class="bd ' + s[1] + '">' + s[0] + '</span>' + (i.exported ? ' <span class="mu">✓ Pohoda</span>' : '') + '</td><td class="r">' + money(calc(i).t) + '</td><td class="r"><button class="g" onclick="togPaid(\'' + i.id + '\')">' + (pd ? 'Nezaplaceno' : 'Zaplaceno') + '</button> <button class="g" onclick="go(\'edit\',\'' + i.id + '\')">Upravit</button> <button class="g" onclick="copyInv(\'' + i.id + '\')">Kopírovat</button>' + (isAdmin ? ' <button class="g d" onclick="delInv(\'' + i.id + '\')">✕</button>' : '') + '</td></tr>';
   }).join('');
   return '<div class="card"><div class="row"><h2 class="sp">Faktury – ' + e(C().name) + '</h2><button class="b" onclick="go(\'edit\')">+ Nová faktura</button></div>' +
     (rows ? '<div class="w"><table><tr><th>Číslo</th><th>Odběratel</th><th>Vystaveno</th><th>Stav</th><th class="r">Celkem</th><th></th></tr>' + rows + '</table></div>' : '<p class="mu">Zatím žádné faktury.</p>') + '</div>';
@@ -430,7 +461,7 @@ window.saveInv = function() {
   }
   if (cur.client && !D.clients.some(c => c.name.toLowerCase() === cur.client.toLowerCase())) wr('clients', { id: uid(), name: cur.client, ico: cur.cico || '', dic: cur.cdic || '', addr: cur.caddr || '' });
   wr('invoices', cur);
-  if (wasNew) wrP('next', C().next + 1);
+  if (wasNew) wrP('next', (C().next || 1) + 1);
   go('inv');
 };
 
@@ -441,7 +472,7 @@ function vStock() {
     '<td style="width:70px"><input value="' + e(s.unit) + '" onchange="stK(\'' + s.id + '\',\'unit\',this.value)"></td>' +
     '<td style="width:110px"><input type="number" step="any" value="' + s.price + '" onchange="stK(\'' + s.id + '\',\'price\',this.value)"></td>' +
     '<td style="width:80px"><select onchange="stK(\'' + s.id + '\',\'vat\',this.value)">' + [0, 12, 21].map(v => '<option' + (v === s.vat ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></td>' +
-    '<td class="r"><button class="g" onclick="stCp(\'' + s.id + '\')">Kopírovat</button> <button class="g d" onclick="stDel(\'' + s.id + '\')">✕</button></td></tr>').join('');
+    '<td class="r"><button class="g" onclick="stCp(\'' + s.id + '\')">Kopírovat</button>' + (isAdmin ? ' <button class="g d" onclick="stDel(\'' + s.id + '\')">✕</button>' : '') + '</td></tr>').join('');
   return '<div class="card"><div class="row"><h2 class="sp">Sklad – ' + e(C().name) + '</h2><button class="g" onclick="go(\'imp\')">Hromadný import</button><button class="b" onclick="stAdd()">+ Přidat položku</button></div>' +
     (rows ? '<div class="w"><table><tr><th>Název</th><th>Na skladě</th><th>Jedn.</th><th>Cena bez DPH</th><th>DPH %</th><th></th></tr>' + rows + '</table></div>' : '<p class="mu">Sklad je prázdný.</p>') + '</div>';
 }
@@ -452,7 +483,7 @@ window.stDel = function(id) { if (confirm('Odebrat položku ze skladu?')) rm('st
 
 function vCli() {
   function ci(id, k, v) { return '<td><input value="' + e(v) + '" onchange="clK(\'' + id + '\',\'' + k + '\',this.value)"></td>'; }
-  const rows = srt(D.clients, 'name').map(c => '<tr>' + ci(c.id, 'name', c.name) + ci(c.id, 'ico', c.ico) + ci(c.id, 'dic', c.dic) + ci(c.id, 'addr', c.addr) + '<td class="r"><button class="g" onclick="clCp(\'' + c.id + '\')">Kopírovat</button> <button class="g d" onclick="clDel(\'' + c.id + '\')">✕</button></td></tr>').join('');
+  const rows = srt(D.clients, 'name').map(c => '<tr>' + ci(c.id, 'name', c.name) + ci(c.id, 'ico', c.ico) + ci(c.id, 'dic', c.dic) + ci(c.id, 'addr', c.addr) + '<td class="r"><button class="g" onclick="clCp(\'' + c.id + '\')">Kopírovat</button>' + (isAdmin ? ' <button class="g d" onclick="clDel(\'' + c.id + '\')">✕</button>' : '') + '</td></tr>').join('');
   return '<div class="card"><div class="row"><h2 class="sp">Odběratelé – ' + e(C().name) + '</h2><input id="cli_ico" placeholder="IČO" style="width:120px"><button class="g" onclick="clByIco()">Načíst z ARES</button><button class="b" onclick="clAdd()">+ Ruční odběratel</button></div>' +
     (rows ? '<div class="w"><table><tr><th>Název</th><th>IČO</th><th>DIČ</th><th>Adresa</th><th></th></tr>' + rows + '</table></div>' : '<p class="mu">Žádní odběratelé.</p>') + '</div>';
 }
@@ -534,12 +565,122 @@ function pohodaXml(list) {
   return x + '</dat:dataPack>\n';
 }
 
+/* ---------- Nastavení firmy + Správa administrátorů přímo v aplikaci ---------- */
 function vSet() {
   const c = C();
-  function f(l, k, ph) { return '<div><label>' + l + '</label><input value="' + e(c[k]) + '" placeholder="' + (ph || '') + '" onchange="wrP(\'' + k + '\',this.value);R()"></div>'; }
-  return '<div class="card"><h2>Údaje firmy</h2><div class="grid">' + f('Název firmy (s.r.o.)', 'name') + f('IČO', 'ico') + f('DIČ', 'dic') + f('Adresa', 'addr') + f('IBAN pro QR platbu', 'iban', 'CZ65 0800 0000 1920 0014 5399') + f('Číslo účtu', 'bank') + '<div><label>Plátce DPH</label><select onchange="wrP(\'vatPayer\',this.value);R()"><option value="ano"' + (c.vatPayer !== 'ne' ? ' selected' : '') + '>Ano</option><option value="ne"' + (c.vatPayer === 'ne' ? ' selected' : '') + '>Ne</option></select></div></div>' +
-    '<p class="mu">Všechna data se ukládají živě do cloudu a vidí je všichni přihlášení uživatelé.</p></div>';
+  const dis = isAdmin ? '' : ' disabled';
+  function f(l, k, ph) {
+    return '<div><label>' + l + '</label><input id="set_' + k + '" value="' + e(c[k]) + '" placeholder="' + (ph || '') + '"' + dis + '></div>';
+  }
+
+  let adminCard = '';
+  if (isAdmin) {
+    const rootRows = ROOT_ADMINS.map(m =>
+      '<tr><td><b>' + e(m) + '</b></td><td><span class="bd ok">Hlavní admin</span></td><td class="r mu">Trvalá práva</td></tr>'
+    ).join('');
+    const dynRows = dynamicAdmins.map(m =>
+      '<tr><td>' + e(m) + '</td><td><span class="bd ok">Admin</span></td><td class="r"><button class="g d" onclick="delAdmin(\'' + e(m) + '\')">Odebrat práva</button></td></tr>'
+    ).join('');
+    adminCard = '<div class="card">' +
+      '<h2>Správa administrátorů</h2>' +
+      '<p class="mu" style="margin-bottom:12px">Administrátoři mohou měnit firemní údaje, mazat faktury/sklad a udělovat práva dalším uživatelům.</p>' +
+      '<div class="row" style="margin-bottom:14px">' +
+        '<input id="new_adm_email" type="email" placeholder="E-mail kolegy (např. kolega@email.cz)" style="min-width:260px;flex:1">' +
+        '<button class="b" onclick="addAdmin()">+ Udělit admin práva</button>' +
+      '</div>' +
+      '<div class="w"><table><tr><th>E-mail uživatele</th><th>Role</th><th></th></tr>' + rootRows + dynRows + '</table></div>' +
+    '</div>';
+  }
+
+  return '<div class="card">' +
+    '<div class="row" style="margin-bottom:14px"><h2 class="sp" style="margin:0">Údaje firmy (' + (A === 'a' ? 'Firma A' : 'Firma B') + ')</h2>' +
+    (isAdmin ? '<button class="g" onclick="setAres()">Načíst firmu z ARES podle IČO</button>' : '<span class="bd wn">Pouze pro čtení (vyžaduje roli ADMIN)</span>') +
+    '</div>' +
+    '<div class="grid">' +
+      f('Název firmy (s.r.o. / OSVČ)', 'name', 'Prime Value s.r.o.') +
+      f('IČO', 'ico', '12345678') +
+      f('DIČ', 'dic', 'CZ12345678') +
+      f('Adresa sídla', 'addr', 'Ulice 1, 678 01 Blansko') +
+      f('IBAN pro QR platbu', 'iban', 'CZ65 0800 0000 1920 0014 5399') +
+      f('Číslo účtu (informativně)', 'bank', '19-2000145399/0800') +
+      '<div><label>Další číslo faktury</label><input id="set_next" type="number" value="' + (c.next || 1) + '"' + dis + '></div>' +
+      '<div><label>Plátce DPH</label><select id="set_vatPayer"' + dis + '><option value="ano"' + (c.vatPayer !== 'ne' ? ' selected' : '') + '>Ano</option><option value="ne"' + (c.vatPayer === 'ne' ? ' selected' : '') + '>Ne</option></select></div>' +
+    '</div>' +
+    (isAdmin
+      ? '<div class="row" style="margin-top:18px"><button class="b" onclick="saveSet()">Uložit údaje firmy</button><span id="set_st" class="ok" style="font-weight:600">' + e(setMsg) + '</span></div>'
+      : '<p class="mu" style="margin-top:14px">Údaje o firmách může měnit pouze administrátor.</p>') +
+    '</div>' + adminCard;
 }
+
+window.addAdmin = async function() {
+  if (!isAdmin) return;
+  const el = document.getElementById('new_adm_email');
+  const email = (el ? el.value : '').trim().toLowerCase();
+  if (!email || !email.includes('@')) { alert('Zadejte platný e-mail uživatele.'); return; }
+  const all = ROOT_ADMINS.concat(dynamicAdmins).map(x => x.toLowerCase());
+  if (all.includes(email)) { alert('Tento uživatel už administrátorská práva má.'); return; }
+  const nextList = dynamicAdmins.concat([email]);
+  try {
+    await setDoc(doc(db, 'settings', 'admins'), { emails: nextList });
+    el.value = '';
+    R();
+  } catch (x) { er(x); }
+};
+
+window.delAdmin = async function(email) {
+  if (!isAdmin) return;
+  if (!confirm('Odebrat administrátorská práva uživateli ' + email + '?')) return;
+  const nextList = dynamicAdmins.filter(x => x.toLowerCase() !== email.toLowerCase());
+  try {
+    await setDoc(doc(db, 'settings', 'admins'), { emails: nextList });
+    R();
+  } catch (x) { er(x); }
+};
+
+window.setAres = async function() {
+  if (!isAdmin) return;
+  const icoEl = document.getElementById('set_ico');
+  const v = (icoEl ? icoEl.value : '').replace(/\s/g, '').padStart(8, '0');
+  if (!icoOk(v)) { alert('Zadejte platné 8místné IČO do políčka IČO.'); return; }
+  const st = document.getElementById('set_st');
+  if (st) st.textContent = 'Načítám z ARES…';
+  try {
+    const a = await fetchAres(v);
+    document.getElementById('set_ico').value = a.ico;
+    document.getElementById('set_name').value = a.name;
+    document.getElementById('set_dic').value = a.dic || '';
+    document.getElementById('set_addr').value = a.addr || '';
+    if (st) st.textContent = 'Načteno z ARES – klikněte na Uložit údaje firmy.';
+  } catch (x) {
+    if (st) st.textContent = '';
+    alert(x.message);
+  }
+};
+
+window.saveSet = async function() {
+  if (!isAdmin) return;
+  const st = document.getElementById('set_st');
+  if (st) st.textContent = 'Ukládám…';
+  const updated = {
+    name: document.getElementById('set_name').value.trim() || (A === 'a' ? 'Firma A' : 'Firma B'),
+    ico: document.getElementById('set_ico').value.trim(),
+    dic: document.getElementById('set_dic').value.trim(),
+    addr: document.getElementById('set_addr').value.trim(),
+    iban: document.getElementById('set_iban').value.trim(),
+    bank: document.getElementById('set_bank').value.trim(),
+    next: parseInt(document.getElementById('set_next').value, 10) || 1,
+    vatPayer: document.getElementById('set_vatPayer').value
+  };
+  P[A] = updated;
+  try {
+    await setDoc(doc(db, 'profiles', A), updated);
+    setMsg = '✓ Údaje firmy byly úspěšně uloženy do cloudu.';
+    R();
+  } catch (x) {
+    setMsg = '';
+    er(x);
+  }
+};
 </script>
 </body>
 </html>
